@@ -279,7 +279,7 @@ jobs:
             } else if (latest) {
               core.warning(`上游 Latest ${latest.tag_name} 未同步完成，本仓库保留当前 Latest 标记。`);
             }
-            const result = `同步检查完成：${syncedTags.size} 个版本核对或同步完成（其中新增 ${createdTags.length} 个），${conflicts.length} 个冲突版本保留原内容并跳过。`;
+            const result = `核对或同步完成 ${syncedTags.size} 个版本；新增 ${createdTags.length} 个版本；保留并跳过 ${conflicts.length} 个旧版本冲突。`;
             console.log(result);
             // Summary 使用 HTML，版本名、附件名等上游内容需转义后显示。
             function escapeHtml(value) {
@@ -298,18 +298,19 @@ jobs:
               hourCycle: 'h23', timeZoneName: 'short',
             }).format(new Date());
             core.summary
-              .addHeading(conflicts.length ? '⚠️ 发现旧版本冲突，已保留备份并继续同步' : '✅ Release 同步完成')
+              .addHeading(conflicts.length ? '⚠️ Release 同步完成，旧版冲突已保留' : '✅ Release 同步完成')
               .addRaw(`<p>检查时间：${escapeHtml(checkedAt)}（America/Los_Angeles）</p>`)
               .addRaw(`<p>${escapeHtml(result)}</p>`);
             if (createdTags.length) {
-              core.summary.addHeading('本次新增版本', 3).addList(
-                createdTags.map(tag => releaseLink(destination, tag, tag)),
-              );
+              core.summary
+                .addRaw(`<details><summary>查看本次新增版本（${createdTags.length} 个）</summary>`)
+                .addList(createdTags.map(tag => releaseLink(destination, tag, tag)))
+                .addRaw('</details>');
             }
             if (conflicts.length) {
               core.summary
+                .addRaw(`<details><summary>查看旧版本冲突详情（${conflicts.length} 个，已保留备份）</summary>`)
                 .addRaw('<p><strong>以下版本与上游当前内容不同，已保留本仓库原内容并跳过整个版本。</strong>其余版本已完成核对或同步；绿色成功不代表冲突已消失。</p>')
-                .addHeading('需要留意的旧版本', 3)
                 .addTable([
                   ['版本', '冲突原因', '本仓库记录', '上游当前版本'].map(data => ({ data, header: true })),
                   ...conflicts.map(({ tag, reason }) => [
@@ -318,7 +319,8 @@ jobs:
                     releaseLink(upstream, tag, '查看上游版本'),
                   ]),
                 ])
-                .addRaw('<p>若只想保留历史备份，无需处理；下次仍会检查并显示这些冲突。若希望改用上游修订版，请先核实差异，再单独处理。</p>');
+                .addRaw('<p>若只想保留历史备份，无需处理；下次仍会检查并显示这些冲突。若希望改用上游修订版，请先核实差异，再单独处理。</p>')
+                .addRaw('</details>');
               console.log(JSON.stringify(conflicts, null, 2));
             }
             await core.summary.write();
